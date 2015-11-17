@@ -97,11 +97,12 @@ def listwin():
 
 def chkwin(state):
     # Check who is winner according to possible rules
+
     for idxs in poswin():
-        cnt = sum(map(reward, idxs))
-        if cnt == 3:
+        cnt = sum([reward(state[i]) for i in idxs])
+        if cnt == 4:
             return 'O'
-        elif cnt == -3:
+        elif cnt == -4:
             return 'X'
     return None
 
