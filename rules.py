@@ -8,7 +8,7 @@ from pdb import set_trace
 
 SIZE = [6, 7]
 N = SIZE[0] * SIZE[1]
-STATE = ' ' * N
+initState = ' ' * N
 
 
 def show(state):
@@ -86,7 +86,7 @@ def poswin():
 def listwin():
     # list cases of who's win
     for idxs in poswin():
-        s = STATE
+        s = initState
         print idxs
         for idx in idxs:
             c = idx % SIZE[1]
@@ -97,6 +97,8 @@ def listwin():
 
 def chkwin(state):
     # Check who is winner according to possible rules
+    if all([(x != ' ') for x in state]):
+        return 'draw'
 
     for idxs in poswin():
         cnt = sum([reward(state[i]) for i in idxs])
@@ -128,8 +130,8 @@ def chkwho(state):
 
 
 if __name__ == '__main__':
-    # show(STATE)
-    # s1 = STATE
+    # show(initState)
+    # s1 = initState
     # for i in range(7):
     #     print 'stage', i
     #     sgn = 'O' if i % 2 == 0 else 'X'
