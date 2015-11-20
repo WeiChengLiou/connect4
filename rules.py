@@ -4,6 +4,7 @@
 import os
 import itertools as it
 from pdb import set_trace
+import random
 
 
 SIZE = [6, 7]
@@ -46,6 +47,16 @@ def actions(state):
     for c in xrange(SIZE[1]):
         if state[c] == ' ':
             yield c
+
+
+def rndstate(t):
+    s0 = initState
+    sgn = 'O'
+    for i in xrange(t):
+        pos = random.choice(list(actions(s0)))
+        s0 = action(s0, pos, sgn)
+        sgn = 'O' if sgn == 'X' else 'X'
+    return s0
 
 
 def newstate(state, r, c, sgn):
@@ -139,5 +150,6 @@ if __name__ == '__main__':
     #     show(s1)
     #     chkDual(s1)
 
-    listwin()
+    # listwin()
+    show(rndstate(5))
 

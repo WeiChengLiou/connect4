@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import random
 from pdb import set_trace
 from RL import Action, State, Model, StateAction
-from rules import chkwin, actions
+from rules import actions
+import cPickle
+import gzip
 
 
 def altkey(state):
@@ -20,10 +21,9 @@ def altkey(state):
 
 
 class C4State(State):
-    def __init__(self, state, sgn):
-        super(C4State, self).__init__(state)
+    def __init__(self, state, win, sgn):
+        super(C4State, self).__init__(state, win)
         self.sgn = sgn
-        self.win = chkwin(state)
         if not self.win:
             self.actions = self.allActions(state)
 
@@ -34,21 +34,18 @@ class C4State(State):
     def terminate(self):
         return (self.win is not None)
 
-    def winner(self):
-        return self.win
-
 
 class C4StateAction(StateAction):
     def __missing__(self, k):
         k1 = altkey(k)
         return self.__getitem__(k1)
 
-    def check(self, state, sgn=None):
-        assert(sgn is not None)
-        if state not in self:
-            k1 = altkey(state)
-            if k1 not in self:
-                self[state] = self.NewState(state, sgn)
+    def check(self, objs, sgn=None):
+        assert sgn is not None
+        k = str(objs)
+        if k not in self:
+            objs.sgn = sgn
+            self[k] = objs
 
 
 class C4Model(Model):
@@ -59,24 +56,51 @@ class C4Model(Model):
         self.states = self.AllStates
         self.reset()
 
-    def update(self, state, action, r):
-        # SARSA learning
-        self.states.check(state, self.sgn)
-        Q1 = self.states.Q(state, action)
-        s1 = self.states[state]
-        if s1.sgn != self.sgn:
-            r = -r
+        if kwargs.get('algo'):
+            self.algo = kwargs['algo'].upper()
+            self.fupdate = eval('%supdate' % self.algo)
+        else:
+            """ For Random Player """
+            self.algo = None
+            self.epsilon = 1
 
-        if self.SAR:
-            Q0, r0 = self.SAR
-            if s1.terminate():
-                r1 = self.alpha * (r - Q0.score)
-            else:
-                r1 = self.alpha * (r0 + self.gamma * Q1.score - Q0.score)
-            Q0.update(r1)
-        self.SAR = (Q1, r)
+    @staticmethod
+    def save(algo):
+        fi = algo + '.pkl'
+        with gzip.open(fi, 'wb') as f:
+            cPickle.dump(C4Model.AllStates, f)
 
-    def check(self, state):
-        self.states.check(state, self.sgn)
+    @staticmethod
+    def load(algo):
+        fi = algo + '.pkl'
+        with gzip.open(fi, 'rb') as f:
+            C4Model.AllStates = cPickle.load(f)
 
+    def reset(self):
+        self.SAR = None
+
+    def check(self, s):
+        self.states.check(s, self.sgn)
+        return self.states[str(s)]
+
+    def update(self, s1, action, r):
+        if self.algo:
+            self.fupdate(self, s1, action, r)
+
+
+def SARSAupdate(obj, s1, action, r):
+    # SARSA learning
+    s1 = obj.check(s1)
+    Q1 = obj.states.Q(s1, action)
+    if s1.sgn != obj.sgn:
+        r = -r
+
+    if obj.SAR:
+        Q0, r0 = obj.SAR
+        if s1.terminate():
+            r1 = obj.alpha * (r - Q0.score)
+        else:
+            r1 = obj.alpha * (r0 + obj.gamma * Q1.score - Q0.score)
+        Q0.update(r1)
+    obj.SAR = (Q1, r)
 

@@ -30,17 +30,21 @@ class State(object):
     # State Class
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, state):
+    def __init__(self, state, win):
         self.state = state
+        self.win = win
         self.actions = [Action(None, state)]
+
+    def __repr__(self):
+        return '<%s: %s, %d actions>' % (
+            type(self), self.state, len(self.actions))
+
+    def __str__(self):
+        return self.state
 
     @abc.abstractmethod
     def terminate(self):
         """return is state is terminate"""
-
-    @abc.abstractmethod
-    def winner(self):
-        """return winner"""
 
     @abc.abstractmethod
     def allActions(self):
@@ -67,44 +71,47 @@ class StateAction(abc.types.DictType):
     def __init__(self, factory):
         self.NewState = factory
 
-    def check(self, state):
-        if state not in self:
-            self[state] = self.NewState(state)
+    def check(self, objs):
+        if objs not in self:
+            self[str(objs)] = objs
 
-    def Q(self, state, action):
-        for a in self[state].actions:
+    def Q(self, objs, action):
+        for a in objs.actions:
             if a.name == action:
                 return a
         if a.name is None:
             return a
         else:
-            raise Exception('Unknown action', state, action)
+            raise Exception('Unknown action', str(objs), action)
 
 
 class Model(object):
     # Basic player model
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
         self.states = StateAction(State)
         for k, v in kwargs.iteritems():
             self.__setattr__(k, v)
 
-    def check(self, state):
-        self.states.check(state)
+    def check(self, objs):
+        self.states.check(objs)
+        return self.states[str(objs)]
 
-    def predict(self, state):
-        self.check(state)
-        s = self.states[state]
-        if s.terminate():
-            raise Exception('state is terminate!')
+    def predict(self, objs):
+        objs = self.check(objs)
+        if objs.terminate():
+            return objs.actions[0]
         if random.random() <= self.epsilon:
-            return s.random()
-        return s.best()
+            return objs.random()
+        return objs.best()
 
-    def update(self, state, action, r):
+    def best(self, objs):
+        objs = self.check(objs)
+        return objs.best()        
+
+    @abc.abstractmethod
+    def update(self, objs, action, r):
         """"""
-
-    def reset(self):
-        self.SAR = None
 
 

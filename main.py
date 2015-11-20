@@ -2,64 +2,64 @@
 # -*- coding: utf-8 -*-
 
 from rules import initState, chkwin, reward, action, chkwho, show
-from c4RL import C4Model
+from c4RL import C4Model, C4State
 from pdb import set_trace
 
 
-def takeAction(obj, state, pos, sgn):
-    state1 = action(state, pos, sgn)
-    win = chkwin(state1)
-    score = reward(win)
-    if sgn == 'X':
-        score = -score
-    return state1, win, score
+def getState(state, sgn):
+    win = chkwin(state)
+    return C4State(state, win, sgn)
 
 
-def train():
-    runs = 2000
-    players = [
-        C4Model(sgn='O', algo='sarsa', epsilon=0.1,
-                gamma=0.5, alpha=0.5),
-        C4Model(sgn='X', algo='sarsa', epsilon=0.1,
-                gamma=0.5, alpha=0.5),
-        ]
+def takeAction(obj, s, pos, sgn):
+    state1 = action(str(s), pos, sgn)
+    s1 = getState(state1, sgn)
+    score = reward(s1.win)
+    return s1, score
 
-    def run(state):
-        sgn = chkwho(state)
-        player = [p for p in players if p.sgn == sgn][0]
-        players.remove(player)
 
-        while 1:
-            players.append(player)
-            player.check(state)
+def game(players, state=None):
+    if state is None:
+        state = initState
 
-            action = player.predict(state)
-            pos = action.name
+    sgn = chkwho(state)
+    s = getState(state, sgn)
+    score = reward(s.win)
+    idx = 0 if players[0].sgn == s.sgn else 1
+    player = players[idx]
 
-            state1, win, score = takeAction(player, state, pos, sgn)
-            player.update(state, pos, score)
-            if win:
-                state = state1
-                player.update(state1, None, score)
-                players[0].update(state1, None, score)
-                break
+    while 1:
+        action = player.predict(s)
+        pos = action.name
 
-            sgn = 'O' if sgn == 'X' else 'X'
-            state = state1
-            player = players.pop(0)
+        s1, score = takeAction(player, s, pos, s.sgn)
+        player.update(s, pos, score)
+        if s1.win:
+            s = s1
+            for p in players:
+                p.update(s1, None, score)
+            return s1.win, score
 
-        # show(state)
-        return initState
+        sgn = 'O' if sgn == 'X' else 'X'
+        s = s1
+        idx = (idx + 1) % 2
+        player = players[idx]
 
-    reduce(lambda state, y: run(state), xrange(runs), initState)
-    for p in players:
-        cnt = 0
-        for s in p.states.values():
-            for a in s.actions:
-                if a.score != 0:
-                    cnt += 1
-        print cnt
-    return players
+
+def Train(TrainRun, TestRun):
+    """ Run train and evaluation synchronously """
+    nRun = 10000
+
+    def run(i):
+        game(TrainRun)
+        win, score = game(TestRun)
+        run.fitness += float(score)
+
+        if i % 1000 == 0:
+            print 'Finish %d runs, mean score: %1.4f' % (i, run.fitness/i)
+
+    run.fitness = 0
+    map(run, xrange(1, nRun+1))
 
 
 def showSA(p):
@@ -73,5 +73,21 @@ def showSA(p):
 
 if __name__ == '__main__':
     """"""
-    players = train()
+    # C4Model.load('SARSA')
+    TrainRun = [
+        C4Model(sgn='O', algo='SARSA', epsilon=0.1,
+                gamma=0.5, alpha=0.5),
+        C4Model(sgn='X', algo='SARSA', epsilon=0.1,
+                gamma=0.5, alpha=0.5),
+        ]
+
+    TestRun = [
+        C4Model(sgn='O', algo='SARSA', epsilon=0.1,
+                gamma=0.5, alpha=0.5),
+        C4Model(sgn='X', epsilon=1.,
+                gamma=0.5, alpha=0.5),
+        ]
+
+    Train(TrainRun, TestRun)
+    C4Model.save('SARSA')
 
