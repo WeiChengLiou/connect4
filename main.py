@@ -51,7 +51,7 @@ def Train(TrainRun, TestRun):
     nRun = 40000
 
     def run(i):
-        # game(TrainRun)
+        game(TrainRun)
         win, score = game(TestRun, initState)
         run.fitness += float(score)
 
@@ -73,7 +73,7 @@ def showSA(p):
 
 if __name__ == '__main__':
     """"""
-    C4Model.load('SARSA')
+    # C4Model.load('SARSA')
     TrainRun = [
         C4Model(sgn='O', algo='SARSA', epsilon=0.1,
                 gamma=0.5, alpha=0.5),
@@ -82,9 +82,9 @@ if __name__ == '__main__':
         ]
 
     TestRun = [
-        C4Model(sgn='O', epsilon=1.,
+        C4Model(sgn='O', algo='SARSA', epsilon=0.1,
                 gamma=0.5, alpha=0.5),
-        C4Model(sgn='X', algo='SARSA', epsilon=0.1,
+        C4Model(sgn='X', epsilon=1.,
                 gamma=0.5, alpha=0.5),
         ]
 
