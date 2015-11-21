@@ -8,18 +8,6 @@ import cPickle
 import gzip
 
 
-def altkey(state):
-    """Return key in contrary sign"""
-    def newk(s):
-        if s == ' ':
-            return s
-        elif s == 'O':
-            return 'X'
-        else:
-            return 'O'
-    return ''.join(map(newk, state))
-
-
 class C4State(State):
     def __init__(self, state, win, sgn):
         super(C4State, self).__init__(state, win)
@@ -37,8 +25,7 @@ class C4State(State):
 
 class C4StateAction(StateAction):
     def __missing__(self, k):
-        k1 = altkey(k)
-        return self.__getitem__(k1)
+        raise Exception('missing key of %s' % k)
 
     def check(self, objs, sgn=None):
         assert sgn is not None
@@ -92,7 +79,7 @@ def SARSAupdate(obj, s1, action, r):
     # SARSA learning
     s1 = obj.check(s1)
     Q1 = obj.states.Q(s1, action)
-    if s1.sgn != obj.sgn:
+    if obj.sgn == 'X':
         r = -r
 
     if obj.SAR:

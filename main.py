@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from rules import initState, chkwin, reward, action, chkwho, show
+from rules import initState, chkwin, reward, action, chkwho, show, rndstate
 from c4RL import C4Model, C4State
 from pdb import set_trace
 
@@ -20,7 +20,7 @@ def takeAction(obj, s, pos, sgn):
 
 def game(players, state=None):
     if state is None:
-        state = initState
+        state = rndstate(-1)
 
     sgn = chkwho(state)
     s = getState(state, sgn)
@@ -48,11 +48,11 @@ def game(players, state=None):
 
 def Train(TrainRun, TestRun):
     """ Run train and evaluation synchronously """
-    nRun = 10000
+    nRun = 40000
 
     def run(i):
-        game(TrainRun)
-        win, score = game(TestRun)
+        # game(TrainRun)
+        win, score = game(TestRun, initState)
         run.fitness += float(score)
 
         if i % 1000 == 0:
@@ -73,7 +73,7 @@ def showSA(p):
 
 if __name__ == '__main__':
     """"""
-    # C4Model.load('SARSA')
+    C4Model.load('SARSA')
     TrainRun = [
         C4Model(sgn='O', algo='SARSA', epsilon=0.1,
                 gamma=0.5, alpha=0.5),
@@ -82,12 +82,12 @@ if __name__ == '__main__':
         ]
 
     TestRun = [
-        C4Model(sgn='O', algo='SARSA', epsilon=0.1,
+        C4Model(sgn='O', epsilon=1.,
                 gamma=0.5, alpha=0.5),
-        C4Model(sgn='X', epsilon=1.,
+        C4Model(sgn='X', algo='SARSA', epsilon=0.1,
                 gamma=0.5, alpha=0.5),
         ]
 
     Train(TrainRun, TestRun)
-    C4Model.save('SARSA')
+    # C4Model.save('SARSA')
 

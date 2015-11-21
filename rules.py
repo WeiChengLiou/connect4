@@ -49,14 +49,18 @@ def actions(state):
             yield c
 
 
-def rndstate(t):
-    s0 = initState
-    sgn = 'O'
-    for i in xrange(t):
-        pos = random.choice(list(actions(s0)))
-        s0 = action(s0, pos, sgn)
-        sgn = 'O' if sgn == 'X' else 'X'
-    return s0
+def rndstate(n):
+    while 1:
+        if n == -1:
+            n = random.randint(0, 10)
+        s0 = initState
+        sgn = 'O'
+        for i in xrange(n):
+            pos = random.choice(list(actions(s0)))
+            s0 = action(s0, pos, sgn)
+            sgn = 'O' if sgn == 'X' else 'X'
+        if not chkwin(s0):
+            return s0
 
 
 def newstate(state, r, c, sgn):
