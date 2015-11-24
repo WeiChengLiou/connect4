@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import itertools as it
 from c4RL import C4Model, C4State
 from rules import action, initState, show, chkwin, reward
 from pdb import set_trace
+from traceback import print_exc
+import cPickle
 
 
 def getState(poss):
@@ -33,18 +36,20 @@ def resetAll(players):
 
 
 class TestCase(object):
-    def init(self):
+    def init(self, algos=None):
+        if not algos:
+            algos = ['SARSA', 'SARSA']
         return [
-            C4Model(sgn='O', algo='SARSA', epsilon=0.1,
+            C4Model(sgn='O', algo=algos[0], epsilon=0.1,
                     gamma=0.5, alpha=0.5),
-            C4Model(sgn='X', algo='SARSA', epsilon=0.1,
+            C4Model(sgn='X', algo=algos[1], epsilon=0.1,
                     gamma=0.5, alpha=0.5),
         ]
 
-    def subtest(self, ps):
+    def subtest(self, ps, actions):
         resetAll(ps)
 
-        poss = map(int, '0101010')
+        poss = map(int, actions)
         s0 = (C4State(initState, None, 'O'))
         ss = [s0]
         i = 0
@@ -76,12 +81,11 @@ class TestCase(object):
         s2 = getState('10')
         ps[0].check(s1)
         ps[1].check(s2)
-        assert len(ps[0].states) == 1
         assert ps[0].states[str(s1)].sgn == 'O'
 
-        self.subtest(ps)
-        self.subtest(ps)
-        self.subtest(ps)
+        self.subtest(ps, '0101010')
+        self.subtest(ps, '0101010')
+        self.subtest(ps, '0101010')
 
         p = ps[0]
         s1 = (getState('0101'))
@@ -122,6 +126,48 @@ class TestCase(object):
             i = (i + 1) % 2
             s0 = s
 
+    def testStateActionX(self):
+        algos = ['SARSA', 'Q']
+
+        for algo in algos:
+            ps = self.init(['stupid', algo])
+
+            cnt = 0
+            rets = []
+            for k in xrange(1000):
+                s0 = C4State(initState, None, 'O')
+                i = 0
+                poss = []
+                for j in xrange(1000):
+                    p = ps[i]
+                    if p.sgn == 'X':
+                        act = p.best(s0)
+                    else:
+                        act = p.predict(s0)
+                    poss.append(int(act.name))
+                    pos = poss[j]
+                    s = getState(poss[:(j+1)])
+                    score = reward(s.win)
+                    p.update(s0, pos, score)
+
+                    if s.win:
+                        [p1.update(s, None, score) for p1 in ps]
+                        break
+
+                    s0 = s
+                    i = (i + 1) % 2
+
+                resetAll(ps)
+                if s.win == 'X':
+                    cnt += 1
+                if (k+1) % 1000 == 0:
+                    print k+1, cnt
+                    rets.append((k+1, cnt))
+            assert cnt > 750
+            # cPickle.dump(rets, open('temp.pkl', 'wb'))
+
+
 if __name__ == '__main__':
     obj = TestCase()
-    obj.testStateAction()
+    obj.testStateActionX()
+

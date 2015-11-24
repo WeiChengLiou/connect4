@@ -53,9 +53,8 @@ class State(object):
     def best(self):
         """Return best action by action's score"""
         assert(len(self.actions) > 0)
-        besta = [Action(None, None)]
-        besta[0].score = None
-        for a in self.actions:
+        besta = [self.actions[0]]
+        for a in self.actions[1:]:
             if a.score > besta[0].score:
                 besta = [a]
             elif a.score == besta[0].score:
@@ -108,7 +107,7 @@ class Model(object):
 
     def best(self, objs):
         objs = self.check(objs)
-        return objs.best()        
+        return objs.best()
 
     @abc.abstractmethod
     def update(self, objs, action, r):

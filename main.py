@@ -19,14 +19,18 @@ def takeAction(obj, s, pos, sgn):
 
 
 def game(players, state=None):
+    def getp(sgn):
+        for p in players:
+            if p.sgn == sgn:
+                return p
+
     if state is None:
         state = rndstate(-1)
 
     sgn = chkwho(state)
     s = getState(state, sgn)
     score = reward(s.win)
-    idx = 0 if players[0].sgn == s.sgn else 1
-    player = players[idx]
+    player = getp(s.sgn)
 
     while 1:
         action = player.predict(s)
@@ -41,22 +45,25 @@ def game(players, state=None):
             return s1.win, score
 
         sgn = 'O' if sgn == 'X' else 'X'
+        player = getp(sgn)
         s = s1
-        idx = (idx + 1) % 2
-        player = players[idx]
 
 
 def Train(TrainRun, TestRun):
     """ Run train and evaluation synchronously """
     nRun = 40000
+    wins = [0, 0]
 
     def run(i):
-        game(TrainRun)
+        win, score = game(TrainRun)
         win, score = game(TestRun, initState)
-        run.fitness += float(score)
+        if win == 'O':
+            wins[0] += 1
+        elif win == 'X':
+            wins[1] += 1
 
         if i % 1000 == 0:
-            print 'Finish %d runs, mean score: %1.4f' % (i, run.fitness/i)
+            print 'Finish %d runs, wins: %d - %d' % (i, wins[0], wins[1])
 
     run.fitness = 0
     map(run, xrange(1, nRun+1))
@@ -82,12 +89,12 @@ if __name__ == '__main__':
         ]
 
     TestRun = [
-        C4Model(sgn='O', algo='SARSA', epsilon=0.1,
+        C4Model(sgn='O', epsilon=1.,
                 gamma=0.5, alpha=0.5),
-        C4Model(sgn='X', epsilon=1.,
+        C4Model(sgn='X', algo='SARSA', epsilon=0.1,
                 gamma=0.5, alpha=0.5),
         ]
 
     Train(TrainRun, TestRun)
-    # C4Model.save('SARSA')
+    C4Model.save('SARSA')
 
