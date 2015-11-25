@@ -3,15 +3,15 @@
 
 from pdb import set_trace
 from RL import Action, State, Model, StateAction
-from rules import actions
+from rules import actions, chkwho
 import cPickle
 import gzip
 
 
 class C4State(State):
-    def __init__(self, state, win, sgn):
+    def __init__(self, state, win):
         super(C4State, self).__init__(state, win)
-        self.sgn = sgn
+        # self.sgn = chkwho(self.state)
         if not self.win:
             self.actions = self.allActions(state)
 
@@ -27,11 +27,9 @@ class C4StateAction(StateAction):
     def __missing__(self, k):
         raise Exception('missing key of %s' % k)
 
-    def check(self, objs, sgn=None):
-        assert sgn is not None
+    def check(self, objs):
         k = str(objs)
         if k not in self:
-            objs.sgn = sgn
             self[k] = objs
 
 
@@ -45,16 +43,20 @@ class C4Model(Model):
 
         if kwargs.get('algo'):
             self.algo = kwargs['algo'].upper()
-            if self.algo:
-                if self.algo == 'STUPID':
-                    self.predict = self.predict1
-                    self.algo = None
-                else:
-                    self.fupdate = eval('%supdate' % self.algo)
+            if self.algo == 'STUPID':
+                # Stupid algo: always pick the first feasible action
+                self.predict = self.predict1
+                self.algo = None
+            else:
+                self.fupdate = eval('%supdate' % self.algo)
         else:
             """ For Random Player """
             self.algo = None
             self.epsilon = 1
+
+    @staticmethod
+    def clear():
+        C4Model.AllStates.clear()
 
     @staticmethod
     def save(algo):
@@ -72,7 +74,7 @@ class C4Model(Model):
         self.SAR = None
 
     def check(self, s):
-        self.states.check(s, self.sgn)
+        self.states.check(s)
         return self.states[str(s)]
 
     def update(self, s1, action, r):
@@ -81,10 +83,6 @@ class C4Model(Model):
 
     def predict1(self, objs):
         return objs.actions[0]
-
-
-def STUPIDupdate(obj, s1, action, r):
-    """"""
 
 
 def SARSAupdate(obj, s1, action, r):

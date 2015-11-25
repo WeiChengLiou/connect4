@@ -50,7 +50,7 @@ class TestCase(object):
         resetAll(ps)
 
         poss = map(int, actions)
-        s0 = (C4State(initState, None, 'O'))
+        s0 = C4State(initState, None, 'O')
         ss = [s0]
         i = 0
         for j, pos in enumerate(poss):
@@ -130,6 +130,7 @@ class TestCase(object):
         algos = ['SARSA', 'Q']
 
         for algo in algos:
+            print algo
             ps = self.init(['stupid', algo])
 
             cnt = 0
@@ -164,7 +165,8 @@ class TestCase(object):
                     print k+1, cnt
                     rets.append((k+1, cnt))
             assert cnt > 750
-            # cPickle.dump(rets, open('temp.pkl', 'wb'))
+
+            C4Model.clear()
 
 
 if __name__ == '__main__':
