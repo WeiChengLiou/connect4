@@ -110,7 +110,7 @@ class Model(object):
         return objs.best()
 
     @abc.abstractmethod
-    def update(self, objs, action, r):
+    def update(self, objs, r):
         """"""
 
 

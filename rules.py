@@ -12,6 +12,14 @@ N = SIZE[0] * SIZE[1]
 initState = ' ' * N
 
 
+class ColException(Exception):
+    def __init__(self, idx):
+        self.idx = idx
+
+    def __repr__(self):
+        return 'ColException(%d)' % self.idx
+
+
 def show(state):
     # Show board state
     print 'Board State'
@@ -32,7 +40,7 @@ def action(state, c, sgn):
     # Put sgn at c column then return new state
     i0 = c
     if state[c] != ' ':
-        raise Exception('No possible position in %d!!' % c)
+        raise ColException(c)
 
     for r in xrange(1, SIZE[0]):
         i = posidx(r, c)
