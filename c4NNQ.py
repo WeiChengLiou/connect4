@@ -78,7 +78,22 @@ class Drunk(object):
         """"""
 
 
-def ANN(self):
+def ANN1(self):
+    self.new_shape = (1, 42)
+    self.state = tf.placeholder(tf.float32, shape=self.new_shape)
+    self.fc1_weights = tf.Variable(
+        tf.truncated_normal([42, 7], stddev=0.1, seed=SEED)
+        )
+    self.fc1_biases = tf.Variable(
+        tf.zeros([7]))
+    self.parms = ('fc1_weights', 'fc1_biases')
+
+    model = tf.nn.softmax(
+        tf.matmul(self.state, self.fc1_weights) + self.fc1_biases)
+    self.model = model
+
+
+def ANN2(self):
     self.new_shape = (1, 42)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
@@ -108,6 +123,14 @@ def CNN(self):
         )
     self.conv1_biases = tf.Variable(
         tf.zeros([16]))
+    self.fc1_weights = tf.Variable(
+        tf.truncated_normal([672, 7], stddev=0.1, seed=SEED)
+        # tf.ones([N, self.ncol])
+        )
+    self.fc1_biases = tf.Variable(
+        tf.zeros([7]))
+    self.parms = ('conv1_weights', 'conv1_biases', 'fc1_weights', 'fc1_biases')
+
     conv = tf.nn.conv2d(
         self.state,
         self.conv1_weights,
@@ -119,20 +142,110 @@ def CNN(self):
         relu,
         [relu_shape[0], relu_shape[1] * relu_shape[2] * relu_shape[3]]
         )
-    self.fc1_weights = tf.Variable(
-        tf.truncated_normal([672, 7], stddev=0.1, seed=SEED)
-        # tf.ones([N, self.ncol])
-        )
-    self.fc1_biases = tf.Variable(
-        tf.zeros([7]))
-    self.parms = ('conv1_weights', 'conv1_biases', 'fc1_weights', 'fc1_biases')
 
     self.model = tf.nn.softmax(
         tf.matmul(reshape, self.fc1_weights) + self.fc1_biases)
 
 
+def CNN2(self):
+    self.new_shape = (1, 6, 7, 1)
+    self.state = tf.placeholder(tf.float32, shape=self.new_shape)
+
+    self.conv1_weights = tf.Variable(
+        tf.truncated_normal([4, 4, 1, 16], stddev=0.1, seed=SEED)
+        )
+    self.conv1_biases = tf.Variable(
+        tf.zeros([16]))
+    self.fc1_weights = tf.Variable(
+        tf.truncated_normal([192, 7], stddev=0.1, seed=SEED)
+        )
+    self.fc1_biases = tf.Variable(
+        tf.zeros([7]))
+    self.parms = ('conv1_weights', 'conv1_biases', 'fc1_weights', 'fc1_biases')
+
+    conv = tf.nn.conv2d(
+        self.state,
+        self.conv1_weights,
+        strides=[1, 1, 1, 1],
+        padding='SAME')
+    relu = tf.nn.relu(tf.nn.bias_add(conv, self.conv1_biases))
+    pool = tf.nn.max_pool(
+        relu,
+        ksize=[1, 2, 2, 1],
+        strides=[1, 2, 2, 1],
+        padding='SAME')
+    pool_shape = pool.get_shape().as_list()
+    reshape = tf.reshape(
+        pool,
+        [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]]
+        )
+
+    self.model = tf.nn.softmax(
+        tf.matmul(reshape, self.fc1_weights) + self.fc1_biases)
+
+
+def CNN3(self):
+    self.new_shape = (1, 6, 7, 1)
+    self.state = tf.placeholder(tf.float32, shape=self.new_shape)
+
+    self.conv1_weights = tf.Variable(
+        tf.truncated_normal([4, 4, 1, 32], stddev=0.1, seed=SEED)
+        )
+    self.conv1_biases = tf.Variable(
+        tf.zeros([32]))
+    self.conv2_weights = tf.Variable(
+        tf.truncated_normal([3, 4, 32, 64], stddev=0.1, seed=SEED)
+        )
+    self.conv2_biases = tf.Variable(
+        tf.zeros([64]))
+    self.fc1_weights = tf.Variable(
+        tf.truncated_normal([256, 512], stddev=0.1, seed=SEED)
+        )
+    self.fc1_biases = tf.Variable(
+        tf.zeros([512]))
+    self.fc2_weights = tf.Variable(
+        tf.truncated_normal([512, 7], stddev=0.1, seed=SEED)
+        )
+    self.fc2_biases = tf.Variable(
+        tf.zeros([7]))
+    self.parms = ('conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases')
+
+    conv = tf.nn.conv2d(
+        self.state,
+        self.conv1_weights,
+        strides=[1, 1, 1, 1],
+        padding='SAME')
+    relu = tf.nn.relu(tf.nn.bias_add(conv, self.conv1_biases))
+    pool = tf.nn.max_pool(
+        relu,
+        ksize=[1, 2, 2, 1],
+        strides=[1, 2, 2, 1],
+        padding='SAME')
+    conv = tf.nn.conv2d(
+        pool,
+        self.conv2_weights,
+        strides=[1, 1, 1, 1],
+        padding='SAME')
+    relu = tf.nn.relu(tf.nn.bias_add(conv, self.conv2_biases))
+    pool = tf.nn.max_pool(
+        relu,
+        ksize=[1, 2, 2, 1],
+        strides=[1, 2, 2, 1],
+        padding='SAME')
+    pool_shape = pool.get_shape().as_list()
+    reshape = tf.reshape(
+        pool,
+        [pool_shape[0], pool_shape[1] * pool_shape[2] * pool_shape[3]]
+        )
+    hidden = tf.nn.relu(
+        tf.matmul(reshape, self.fc1_weights) + self.fc1_biases)
+    model = tf.nn.softmax(
+        tf.matmul(hidden, self.fc2_weights) + self.fc2_biases)
+    self.model = model
+
+
 class NNQ(object):
-    def __init__(self, sgn, alpha=0.5, gamma=0.5, epsilon=0.1):
+    def __init__(self, sgn, algo, alpha=0.5, gamma=0.5, epsilon=0.1):
         self.sgn = sgn
         self.SAR = None  # tuple of (state, action)
         self.alpha = alpha
@@ -140,15 +253,15 @@ class NNQ(object):
         self.epsilon = epsilon
         self.nrow = 6
         self.ncol = 7
-        N = self.nrow * self.ncol
+        self.algo = algo
 
         self.Q = tf.placeholder(tf.float32, shape=[self.ncol])
-        ANN(self)
+        eval(algo)(self)
 
+        f = lambda x: tf.nn.l2_loss(self.__getattribute__(x))
         loss = tf.reduce_mean(tf.square(self.model - self.Q))
-        f = lambda parm: tf.nn.l2_loss(self.__getattribute__(parm))
-        # regularizer = sum(map(f, self.parms))
-        self.loss = loss # + 1e-4 * regularizer
+        regularizer = sum(map(f, self.parms))
+        self.loss = loss + 1e-4 * regularizer
         self.optimizer = \
             tf.train.GradientDescentOptimizer(0.5)\
               .minimize(self.loss)
@@ -236,12 +349,13 @@ class NNQ(object):
         return li
 
     def save(self):
-        cPickle.dump(self.getparm(),
-                     gzip.open('temp.pkl', 'wb'))
+        fi = 'NeuralQ.{}.pkl'.format(self.algo)
+        cPickle.dump(self.getparm(), gzip.open(fi, 'wb'))
 
     def load(self):
-        for vname, var in zip(
-                self.parms, cPickle.load(gzip.open('temp.pkl', 'rb'))):
+        fi = 'NeuralQ.{}.pkl'.format(self.algo)
+        ret = cPickle.load(gzip.open(fi, 'rb'))
+        for vname, var in zip(self.parms, ret):
             self.__setattr__(vname, var)
 
 

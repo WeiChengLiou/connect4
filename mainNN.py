@@ -74,7 +74,7 @@ def train(**kwargs):
     wins = [0, 0]
 
     Players = [
-        NNQ(sgn='O'),
+        NNQ(sgn='O', algo=kwargs['algo']),
         Drunk(sgn='X'),
         ]
     p = Players[0]
@@ -82,24 +82,24 @@ def train(**kwargs):
 
     def run(i):
         win, score = game(Players, None)
-        li.append(map(np.mean, p.getparm()))
         if win == 'O':
             wins[0] += 1
         elif win == 'X':
             wins[1] += 1
 
         if (i+1) % 1000 == 0:
+            # li.append(map(np.mean, p.getparm()))
+            li.append(wins)
             print 'Finish %d runs, wins: %d - %d' % (i+1, wins[0], wins[1])
             print (map(np.mean, p.getparm()))
             for i in range(2):
                 wins[i] = 0
 
     map(run, xrange(nRun))
-    df = pd.DataFrame(li, columns=p.parms)
-    df.plot()
-    plt.show()
-    # p.save()
-    return Players
+    if kwargs.get('save'):
+        p.save()
+        pd.DataFrame(li).to_csv('result.{}.csv'.format(p.algo))
+    return Players, li
 
 
 def showSA(p):
@@ -115,8 +115,10 @@ if __name__ == '__main__':
     """"""
     parser = argparse.ArgumentParser()
     parser.add_argument('proc', help='Procedures: train')
-    parser.add_argument('-n', help='number of runs (default: 50000)',
+    parser.add_argument('-n', help='number of runs (default: 100)',
                         default=100, type=int)
+    parser.add_argument('-algo', default='ANN1', type=str)
+    parser.add_argument('-save', default=False, type=bool)
     args = parser.parse_args()
 
     if args.proc == 'train':
