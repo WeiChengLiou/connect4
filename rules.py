@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import itertools as it
-from pdb import set_trace
 import random
 
 

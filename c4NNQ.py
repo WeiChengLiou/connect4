@@ -9,7 +9,7 @@ import tensorflow as tf
 import numpy as np
 from pdb import set_trace
 from random import choice, random
-from rules import show
+from RL import chkEmpty
 
 # Implementation of Neural-Q
 # Use tensorflow to construct neural network framework
@@ -24,53 +24,6 @@ from rules import show
 SEED = 34654
 N_BATCH = 1000
 N_REPSIZE = 2000
-
-
-def encState(state):
-    """ encode original state into two boards """
-    s1 = np.zeros((2, 42), dtype=np.float32)
-    for i in xrange(42):
-        if state[i] == 'O':
-            s1[0, i] = 1
-        elif state[i] == 'X':
-            s1[1, i] = 1
-    # return s1.ravel()
-    return s1.reshape((1, 84))
-
-
-def Actable(state, act):
-    """ Actionable step """
-    if (state[0, act] == 0) and (state[0, act+42] == 0):
-        return True
-    else:
-        return False
-
-
-def show1(state):
-    s = [' '] * 42
-    for i in range(42):
-        if state[0, i] == 1:
-            s[i] = 'O'
-        elif state[0, i+42] == 1:
-            s[i] = 'X'
-    show(''.join(s))
-
-
-def transform(state, new_shape):
-    # Transform C4State class into numpy array
-    def f(s):
-        if s == 'O':
-            return 1
-        elif s == 'X':
-            return 2
-        else:
-            return 0
-    return np.array(map(f, str(state)), dtype=np.float32).reshape(
-        new_shape)
-
-
-def chkEmpty(s1, i):
-    return (s1[0, i] == 0) and (s1[0, i+42] == 0)
 
 
 def rndAction(state):
@@ -117,7 +70,7 @@ class Simple(Model):
         """"""
 
 
-class Drunk(Model):
+class Random(Model):
     # Random Player
     def __init__(self, sgn):
         self.sgn = sgn
@@ -214,7 +167,7 @@ class NNQ(Model):
         rewards = self.eval(state)
         s1 = state.ravel()
         for i in np.argsort(rewards[0, :].ravel())[::-1]:
-            if (s1[i] == 0) and (Actable(state, i)):
+            if (s1[i] == 0) and (chkEmpty(state, i)):
                 act = i
                 break
         self.booking(StateAct(state, act, None))

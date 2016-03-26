@@ -1,116 +1,43 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from pdb import set_trace
-import random
-import abc
-
-
-class Action(object):
-    # Action class
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, action, state, score=0.):
-        self.name = action
-        self.state = state
-        self.score = score
-
-    def update(self, r):
-        """Update score"""
-        self.score += r
-
-    def __str__(self):
-        return '<Action: %s, %s, %f>' % (self.state, self.name, self.score)
-
-    def __repr__(self):
-        return self.__str__()
+import numpy as np
+from rules import show
 
 
 class State(object):
     # State Class
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, state, win):
         self.state = state
         self.win = win
-        self.actions = [Action(None, state)]
-
-    def __repr__(self):
-        return '<%s: %s, %d actions>' % (
-            type(self), self.state, len(self.actions))
 
     def __str__(self):
         return self.state
 
-    @abc.abstractmethod
-    def terminate(self):
-        """return is state is terminate"""
 
-    @abc.abstractmethod
-    def allActions(self):
-        """return possible actions"""
-
-    def best(self):
-        """Return best action by action's score"""
-        assert(len(self.actions) > 0)
-        besta = [self.actions[0]]
-        for a in self.actions[1:]:
-            if a.score > besta[0].score:
-                besta = [a]
-            elif a.score == besta[0].score:
-                besta.append(a)
-        return random.choice(besta)
-
-    def random(self):
-        """Random select action"""
-        return random.choice(self.actions)
+def encState(state):
+    """ encode original state into two boards """
+    s1 = np.zeros((2, 42), dtype=np.float32)
+    for i in xrange(42):
+        if state[i] == 'O':
+            s1[0, i] = 1
+        elif state[i] == 'X':
+            s1[1, i] = 1
+    # return s1.ravel()
+    return s1.reshape((1, 84))
 
 
-class StateAction(abc.types.DictType):
-    def __init__(self, factory):
-        self.NewState = factory
-
-    def check(self, objs):
-        if objs not in self:
-            self[str(objs)] = objs
-
-    def Q(self, objs, action):
-        for a in objs.actions:
-            if a.name == action:
-                return a
-        if a.name is None:
-            return a
-        else:
-            raise Exception('Unknown action', str(objs), action)
+def chkEmpty(s1, i):
+    return (s1[0, i] == 0) and (s1[0, i+42] == 0)
 
 
-class Model(object):
-    # Basic player model
-    __metaclass__ = abc.ABCMeta
-
-    def __init__(self, **kwargs):
-        self.states = StateAction(State)
-        for k, v in kwargs.iteritems():
-            self.__setattr__(k, v)
-
-    def check(self, objs):
-        self.states.check(objs)
-        return self.states[str(objs)]
-
-    def predict(self, objs):
-        objs = self.check(objs)
-        if objs.terminate():
-            return objs.actions[0]
-        if random.random() <= self.epsilon:
-            return objs.random()
-        return objs.best()
-
-    def best(self, objs):
-        objs = self.check(objs)
-        return objs.best()
-
-    @abc.abstractmethod
-    def update(self, objs, r):
-        """"""
+def show1(state):
+    s = [' '] * 42
+    for i in range(42):
+        if state[0, i] == 1:
+            s[i] = 'O'
+        elif state[0, i+42] == 1:
+            s[i] = 'X'
+    show(''.join(s))
 
 

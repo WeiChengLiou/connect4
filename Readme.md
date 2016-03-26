@@ -1,7 +1,10 @@
 # Connect 4
 
-run main.py
+Executie:
 
-## test
+python main.py train -algo ANN1 -n 100
 
-    >> py.test -q test.py
+algo:
+    * ANN1
+    * ANN2
+
