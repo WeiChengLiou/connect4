@@ -120,11 +120,11 @@ def listwin():
 
 def chkwin(state):
     # Check who is winner according to possible rules
-    if all([(x != ' ') for x in state]):
+    if all([(x != ' ') for x in state[:7]]):
         return 'draw'
 
     for idxs in poswin():
-        cnt = sum([reward(state[i]) for i in idxs])
+        cnt = sum([_reward(state[i]) for i in idxs])
         if cnt == 4:
             return 'O'
         elif cnt == -4:
@@ -132,7 +132,7 @@ def chkwin(state):
     return None
 
 
-def reward(sgn):
+def _reward(sgn):
     # Return reward by sgn
     if sgn == 'O':
         return 1
@@ -144,7 +144,7 @@ def reward(sgn):
 
 def chkwho(state):
     # Get who's turn
-    cnt = sum(map(reward, state))
+    cnt = sum(map(_reward, state))
     if cnt == 1:
         return 'X'
     elif cnt == 0:

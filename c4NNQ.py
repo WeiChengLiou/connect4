@@ -9,6 +9,7 @@ import tensorflow as tf
 import numpy as np
 from pdb import set_trace
 from random import choice, random
+from rules import show
 
 # Implementation of Neural-Q
 # Use tensorflow to construct neural network framework
@@ -21,6 +22,38 @@ from random import choice, random
 #   2. How to save/load?
 #      Ans: Use cPickle to save, and tf.assign() to load
 SEED = 34654
+N_BATCH = 1000
+N_REPSIZE = 2000
+
+
+def encState(state):
+    """ encode original state into two boards """
+    s1 = np.zeros((2, 42), dtype=np.float32)
+    for i in xrange(42):
+        if state[i] == 'O':
+            s1[0, i] = 1
+        elif state[i] == 'X':
+            s1[1, i] = 1
+    # return s1.ravel()
+    return s1.reshape((1, 84))
+
+
+def Actable(state, act):
+    """ Actionable step """
+    if (state[0, act] == 0) and (state[0, act+42] == 0):
+        return True
+    else:
+        return False
+
+
+def show1(state):
+    s = [' '] * 42
+    for i in range(42):
+        if state[0, i] == 1:
+            s[i] = 'O'
+        elif state[0, i+42] == 1:
+            s[i] = 'X'
+    show(''.join(s))
 
 
 def transform(state, new_shape):
@@ -36,56 +69,249 @@ def transform(state, new_shape):
         new_shape)
 
 
+def chkEmpty(s1, i):
+    return (s1[0, i] == 0) and (s1[0, i+42] == 0)
+
+
 def rndAction(state):
     try:
-        s1 = state.ravel()
-        return choice([i for i in xrange(7) if s1[i] == 0])
+        return choice([i for i in xrange(7) if chkEmpty(state, i)])
     except:
         print_exc()
         set_trace()
 
 
-class Simple(object):
+class Model(object):
+    def evalR(self, wl):
+        """ evalaute reward given state """
+        if wl is None:
+            return 0.
+        if wl == 'draw':
+            return 1
+        elif wl == self.sgn:
+            return 2
+        else:
+            return -2
+
+    def setScore(self, score):
+        """"""
+
+    def replay(self):
+        """"""
+
+
+class Simple(Model):
     # Simple Player
     def __init__(self, sgn):
         self.sgn = sgn
 
     def predict(self, state):
-        state = str(state)
         for i in xrange(6, -1, -1):
-            if state[i] == ' ':
+            if chkEmpty(state, i):
                 return i
 
     def update(self, s1, r):
-        """"""
+        return self
 
     def reset(self):
         """"""
 
 
-class Drunk(object):
+class Drunk(Model):
     # Random Player
     def __init__(self, sgn):
         self.sgn = sgn
 
     def predict(self, state):
-        return rndAction(transform(state, [1, 42]))
+        return rndAction(state)
 
     def update(self, s1, r):
-        """"""
+        return self
 
     def reset(self):
         """"""
 
 
+class NNQ(Model):
+    def __init__(self, sgn, algo, alpha=0.5, gamma=0.5, epsilon=0.1):
+        self.sgn = sgn
+        self.SARs = []  # List of (state, action)
+        self.alpha = alpha
+        self.gamma = gamma  # Discount factor
+        self.epsilon = epsilon
+        self.nrow = 6
+        self.ncol = 7
+        self.algo = algo
+        self.RepSize = N_REPSIZE
+
+        self.Q = tf.placeholder(tf.float32, shape=[N_BATCH, self.ncol])
+        eval(algo)(self)  # Build up NN structure
+
+        f = lambda x: tf.nn.l2_loss(self.__getattribute__(x))
+        loss = tf.reduce_mean(tf.square(self.model - self.Q))
+        regularizer = sum(map(f, self.parms))
+        self.loss = loss + 1e-4 * regularizer
+        self.optimizer = \
+            tf.train.GradientDescentOptimizer(0.5)\
+              .minimize(self.loss)
+
+        # self.prediction = tf.argmax(self.model, 1)
+
+        # Before starting, initialize the variables.  We will 'run' this first.
+        self.init = tf.initialize_all_variables()
+
+        # Launch the graph.
+        self.sess = tf.Session()
+        self.sess.run(self.init)
+
+    def reset(self):
+        if len(self.SARs) > self.RepSize:
+            self.SARs = self.SARs[N_BATCH:]
+
+    def update(self, state, r0):
+        # receive state class
+        # self._update(state, r0)
+        if r0 == -100:
+            del self.SARs[-1]
+        return self
+
+    def booking(self, SA):
+        self.SARs.append(SA)
+
+    def _update(self, SARs):
+        S = np.vstack([sa.state for sa in SARs])
+
+        r0 = np.vstack([self.reward(sa.act, sa.score) for sa in SARs])
+        r01 = self.maxR(S[1:, :]) * self.gamma
+        r01[N_BATCH-1] = 0
+        for i, sa in enumerate(SARs):
+            r0[i, sa.act] += r01[i]
+            # r0[i, :] += r01[i]
+        R = (1 - self.alpha) * self.eval(S) + self.alpha * r0
+
+        r1, c1 = S.shape
+        if r1 < N_BATCH:
+            S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
+            R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
+        feed_dict = {self.state: S, self.Q: R}
+        var_list = [self.optimizer, self.loss]
+        _, l = self.sess.run(var_list, feed_dict)
+
+    def predict(self, state):
+        """ epsilon-greedy algorithm """
+        if random() > self.epsilon:
+            act = self._action(state)
+        else:
+            act = rndAction(state)
+        return act
+
+    def _action(self, state):
+        """
+        Return best action given state and win/loss
+        Like predict process in NN
+        Best action: argmax( R(s, a) + gamma * max(R(s', a')) )
+        """
+        rewards = self.eval(state)
+        s1 = state.ravel()
+        for i in np.argsort(rewards[0, :].ravel())[::-1]:
+            if (s1[i] == 0) and (Actable(state, i)):
+                act = i
+                break
+        self.booking(StateAct(state, act, None))
+        return act
+
+    def replay(self):
+        # R(t+1) = a * R'(St, At) + (1-a) * (R(St, At) + g * max_a(R'(St1, a)))
+        try:
+            N = len(self.SARs)
+            if N < N_BATCH:
+                return
+            idx = np.random.choice(range(N), N_BATCH)
+            # idx = np.array(range(N_BATCH))
+            SARs = [self.SARs[i] for i in idx]
+            S = np.vstack([sa.state for sa in SARs])
+
+            r0 = np.vstack([self.reward(sa.act, sa.score) for sa in SARs])
+            r01 = self.maxR(S[1:, :]) * self.gamma
+            r01[N_BATCH-1] = 0
+            for i, sa in enumerate(SARs):
+                r0[i, sa.act] += r01[i]
+            R = (1 - self.alpha) * self.eval(S) + self.alpha * r0
+
+            r1, c1 = S.shape
+            if r1 < N_BATCH:
+                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
+                R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
+            feed_dict = {self.state: S, self.Q: R}
+            var_list = [self.optimizer, self.loss]
+            _, l = self.sess.run(var_list, feed_dict)
+        except:
+            print_exc()
+            set_trace()
+
+    def setScore(self, score):
+        last = len(self.SARs) - 1
+        for i in range(last, -1, -1):
+            s = self.SARs[i]
+            if s.score is None:
+                s.score = score
+                if i != last:
+                    s.state1 = self.SARs[i+1].state
+
+    def reward(self, a, r):
+        """
+        Reward function
+        """
+        rmat = np.zeros([self.ncol], dtype=np.float32)
+        if r != 0:
+            rmat[a] = r
+        return rmat
+
+    def rewardS(self, sa):
+        return self.reward(sa.act, sa.score)
+
+    def maxR(self, state):
+        return self.eval(state).max(axis=1)
+
+    def eval(self, state):
+        assert type(state) == np.ndarray, type(state)
+        r, c = state.shape
+        if r < N_BATCH:
+            state = np.r_[state, np.zeros((N_BATCH-r, 84))]
+        try:
+            r, = self.sess.run(
+                [self.model],
+                feed_dict={self.state: state})
+            return r
+        except:
+            print_exc()
+            set_trace()
+
+    def getparm(self):
+        li = []
+        for parm in it.imap(self.__getattribute__, self.parms):
+            li.append(self.sess.run(parm))
+        return li
+
+    def save(self):
+        fi = 'NeuralQ.{}.pkl'.format(self.algo)
+        cPickle.dump(self.getparm(), gzip.open(fi, 'wb'))
+
+    def load(self):
+        fi = 'NeuralQ.{}.pkl'.format(self.algo)
+        ret = cPickle.load(gzip.open(fi, 'rb'))
+        for vname, var in zip(self.parms, ret):
+            self.__setattr__(vname, var)
+
+
 def ANN1(self):
-    self.new_shape = (1, 42)
+    self.new_shape = (N_BATCH, 84)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([42, 7], stddev=0.1, seed=SEED)
+        tf.truncated_normal([84, 7], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
-        tf.zeros([7]))
+        tf.zeros([N_BATCH, 7]))
     self.parms = ('fc1_weights', 'fc1_biases')
 
     model = tf.nn.softmax(
@@ -94,18 +320,18 @@ def ANN1(self):
 
 
 def ANN2(self):
-    self.new_shape = (1, 42)
+    self.new_shape = (N_BATCH, 84)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([42, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([84, 16], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
-        tf.zeros([16]))
+        tf.zeros([N_BATCH, 16]))
     self.fc2_weights = tf.Variable(
         tf.truncated_normal([16, 7], stddev=0.1, seed=SEED)
         )
     self.fc2_biases = tf.Variable(
-        tf.zeros([7]))
+        tf.zeros([N_BATCH, 7]))
     self.parms = ('fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases')
 
     model = tf.nn.relu(
@@ -244,119 +470,12 @@ def CNN3(self):
     self.model = model
 
 
-class NNQ(object):
-    def __init__(self, sgn, algo, alpha=0.5, gamma=0.5, epsilon=0.1):
-        self.sgn = sgn
-        self.SAR = None  # tuple of (state, action)
-        self.alpha = alpha
-        self.gamma = gamma  # Discount factor
-        self.epsilon = epsilon
-        self.nrow = 6
-        self.ncol = 7
-        self.algo = algo
-
-        self.Q = tf.placeholder(tf.float32, shape=[self.ncol])
-        eval(algo)(self)
-
-        f = lambda x: tf.nn.l2_loss(self.__getattribute__(x))
-        loss = tf.reduce_mean(tf.square(self.model - self.Q))
-        regularizer = sum(map(f, self.parms))
-        self.loss = loss + 1e-4 * regularizer
-        self.optimizer = \
-            tf.train.GradientDescentOptimizer(0.5)\
-              .minimize(self.loss)
-
-        # self.prediction = tf.argmax(self.model, 1)
-
-        # Before starting, initialize the variables.  We will 'run' this first.
-        self.init = tf.initialize_all_variables()
-
-        # Launch the graph.
-        self.sess = tf.Session()
-        self.sess.run(self.init)
-
-    def reset(self):
-        self.SAR = None
-
-    def update(self, state, r0):
-        # receive state class
-        # needs preprocess
-        if self.sgn == 'X':
-            r0 = -r0
-        state = transform(state, self.new_shape)
-        self._update(state, r0)
-
-    def predict(self, state):
-        state = transform(state, self.new_shape)
-        if random() > self.epsilon:
-            act = self._action(state)
-        else:
-            act = rndAction(state)
-        return act
-
-    def _update(self, state, wl):
-        if self.SAR is None:
-            return
-        s0, a0 = self.SAR
-        r = self.reward(a0, wl)
-        if wl == 0:
-            # game not terminated
-            r += self.gamma * self.maxR(state)
-        r1 = (1 - self.alpha) * self.eval(s0).ravel() + self.alpha * r
-        feed_dict = {self.state: s0, self.Q: r1}
-        var_list = [self.optimizer, self.loss]
-        _, l = self.sess.run(var_list, feed_dict)
-
-    def _action(self, state):
-        """
-        Return best action given state and win/loss
-        Like predict process in NN
-        Best action: argmax( R(s, a) + gamma * max(R(s', a')) )
-        """
-        feed_dict = {self.state: state}
-        var_list = [self.model]
-        rewards, = self.sess.run(var_list, feed_dict)  # R(s, a)
-        s1 = state.ravel()
-        for i in np.argsort(rewards.ravel())[::-1]:
-            if s1[i] == 0:
-                act = i
-                break
-        self.SAR = state, act
-        return act
-
-    def reward(self, a, wl):
-        """
-        Reward function
-        """
-        r = np.zeros([self.ncol], dtype=np.float32)
-        if wl != 0:
-            r[a] = wl
-        return r
-
-    def maxR(self, state):
-        return self.eval(state).max()
-
-    def eval(self, state):
-        r, = self.sess.run(
-            [self.model],
-            feed_dict={self.state: state})
-        return r
-
-    def getparm(self):
-        li = []
-        for parm in it.imap(self.__getattribute__, self.parms):
-            li.append(self.sess.run(parm))
-        return li
-
-    def save(self):
-        fi = 'NeuralQ.{}.pkl'.format(self.algo)
-        cPickle.dump(self.getparm(), gzip.open(fi, 'wb'))
-
-    def load(self):
-        fi = 'NeuralQ.{}.pkl'.format(self.algo)
-        ret = cPickle.load(gzip.open(fi, 'rb'))
-        for vname, var in zip(self.parms, ret):
-            self.__setattr__(vname, var)
+class StateAct(object):
+    def __init__(self, state, act, score):
+        self.state = state
+        self.act = act
+        self.score = score
+        self.state1 = None
 
 
 def test():
