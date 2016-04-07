@@ -22,7 +22,7 @@ from RL import chkEmpty, StateAct
 #   2. How to save/load?
 #      Ans: Use cPickle to save, and tf.assign() to load
 SEED = 34654
-N_BATCH = 1000
+N_BATCH = 10
 N_REPSIZE = 2000
 
 
@@ -142,7 +142,7 @@ class NNQ(Model):
 
         r1, c1 = S.shape
         if r1 < N_BATCH:
-            S = np.r_[S, np.zeros((N_BATCH-r1, 42))]
+            S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
             R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
         feed_dict = {self.state: S, self.Q: R}
         var_list = [self.optimizer, self.loss]
@@ -191,7 +191,7 @@ class NNQ(Model):
 
             r1, c1 = S.shape
             if r1 < N_BATCH:
-                S = np.r_[S, np.zeros((N_BATCH-r1, 42))]
+                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
                 R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
             feed_dict = {self.state: S, self.Q: R}
             var_list = [self.optimizer, self.loss]
@@ -228,7 +228,7 @@ class NNQ(Model):
         assert type(state) == np.ndarray, type(state)
         r, c = state.shape
         if r < N_BATCH:
-            state = np.r_[state, np.zeros((N_BATCH-r, 42))]
+            state = np.r_[state, np.zeros((N_BATCH-r, 84))]
         try:
             r, = self.sess.run(
                 [self.model],
@@ -256,10 +256,10 @@ class NNQ(Model):
 
 
 def ANN1(self):
-    self.new_shape = (N_BATCH, 42)
+    self.new_shape = (N_BATCH, 84)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([42, 7], stddev=0.1, seed=SEED)
+        tf.truncated_normal([84, 7], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([N_BATCH, 7]))
@@ -271,10 +271,10 @@ def ANN1(self):
 
 
 def ANN2(self):
-    self.new_shape = (N_BATCH, 42)
+    self.new_shape = (N_BATCH, 84)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([42, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([84, 16], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([N_BATCH, 16]))
@@ -292,7 +292,7 @@ def ANN2(self):
 
 
 def CNN(self):
-    self.new_shape = (1, 6, 7, 1)
+    self.new_shape = (N_BATCH, 6, 7, 1)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
 
     self.conv1_weights = tf.Variable(

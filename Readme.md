@@ -11,6 +11,7 @@ algo:
 
 # TODO:
 
+- Update for each time
 - Save/load
-- Connect chiao-lun's server
+- Connect chiao-lun server
 - Weight recording
