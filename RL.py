@@ -15,7 +15,21 @@ class State(object):
         return self.state
 
 
-def encState(state):
+class StateAct(object):
+    def __init__(self, state, act, score):
+        self.state = state
+        self.act = act
+        self.score = score
+        self.state1 = None
+
+    def r(self):
+        if self.score is None:
+            return 0.
+        else:
+            return self.score
+
+
+def encState0(state):
     """ encode original state into two boards """
     s1 = np.zeros((2, 42), dtype=np.float32)
     for i in xrange(42):
@@ -27,8 +41,24 @@ def encState(state):
     return s1.reshape((1, 84))
 
 
-def chkEmpty(s1, i):
+def chkEmpty0(s1, i):
     return (s1[0, i] == 0) and (s1[0, i+42] == 0)
+
+
+def encState(state):
+    """ encode original state into two boards """
+    s1 = np.zeros((1, 42), dtype=np.float32)
+    for i in xrange(42):
+        if state[i] == 'O':
+            s1[0, i] = 1
+        elif state[i] == 'X':
+            s1[0, i] = 1
+    # return s1.ravel()
+    return s1.reshape((1, 42))
+
+
+def chkEmpty(s1, i):
+    return (s1[0, i] == 0)
 
 
 def show1(state):

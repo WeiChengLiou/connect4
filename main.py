@@ -53,13 +53,8 @@ def game(players, state=None):
             player = players[i]
             score = player.evalR(s.win)
             s = s1
-            # if j % 2 == 0:
-            #     show(str(s))
-            #     raw_input()
-        except ColException as e:
-            # print 'Bump column:', e.idx
+        except ColException:
             score = -100.
-            # pos = player.predict(snew)
 
     for p in players:
         score = p.evalR(s1.win)

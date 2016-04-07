@@ -9,7 +9,7 @@ import tensorflow as tf
 import numpy as np
 from pdb import set_trace
 from random import choice, random
-from RL import chkEmpty
+from RL import chkEmpty, StateAct
 
 # Implementation of Neural-Q
 # Use tensorflow to construct neural network framework
@@ -124,8 +124,6 @@ class NNQ(Model):
     def update(self, state, r0):
         # receive state class
         # self._update(state, r0)
-        if r0 == -100:
-            del self.SARs[-1]
         return self
 
     def booking(self, SA):
@@ -134,7 +132,7 @@ class NNQ(Model):
     def _update(self, SARs):
         S = np.vstack([sa.state for sa in SARs])
 
-        r0 = np.vstack([self.reward(sa.act, sa.score) for sa in SARs])
+        r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
         r01 = self.maxR(S[1:, :]) * self.gamma
         r01[N_BATCH-1] = 0
         for i, sa in enumerate(SARs):
@@ -144,7 +142,7 @@ class NNQ(Model):
 
         r1, c1 = S.shape
         if r1 < N_BATCH:
-            S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
+            S = np.r_[S, np.zeros((N_BATCH-r1, 42))]
             R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
         feed_dict = {self.state: S, self.Q: R}
         var_list = [self.optimizer, self.loss]
@@ -184,7 +182,7 @@ class NNQ(Model):
             SARs = [self.SARs[i] for i in idx]
             S = np.vstack([sa.state for sa in SARs])
 
-            r0 = np.vstack([self.reward(sa.act, sa.score) for sa in SARs])
+            r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
             r01 = self.maxR(S[1:, :]) * self.gamma
             r01[N_BATCH-1] = 0
             for i, sa in enumerate(SARs):
@@ -193,7 +191,7 @@ class NNQ(Model):
 
             r1, c1 = S.shape
             if r1 < N_BATCH:
-                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
+                S = np.r_[S, np.zeros((N_BATCH-r1, 42))]
                 R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
             feed_dict = {self.state: S, self.Q: R}
             var_list = [self.optimizer, self.loss]
@@ -230,7 +228,7 @@ class NNQ(Model):
         assert type(state) == np.ndarray, type(state)
         r, c = state.shape
         if r < N_BATCH:
-            state = np.r_[state, np.zeros((N_BATCH-r, 84))]
+            state = np.r_[state, np.zeros((N_BATCH-r, 42))]
         try:
             r, = self.sess.run(
                 [self.model],
@@ -258,10 +256,10 @@ class NNQ(Model):
 
 
 def ANN1(self):
-    self.new_shape = (N_BATCH, 84)
+    self.new_shape = (N_BATCH, 42)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([84, 7], stddev=0.1, seed=SEED)
+        tf.truncated_normal([42, 7], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([N_BATCH, 7]))
@@ -273,10 +271,10 @@ def ANN1(self):
 
 
 def ANN2(self):
-    self.new_shape = (N_BATCH, 84)
+    self.new_shape = (N_BATCH, 42)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([84, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([42, 16], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([N_BATCH, 16]))
@@ -422,21 +420,4 @@ def CNN3(self):
         tf.matmul(hidden, self.fc2_weights) + self.fc2_biases)
     self.model = model
 
-
-class StateAct(object):
-    def __init__(self, state, act, score):
-        self.state = state
-        self.act = act
-        self.score = score
-        self.state1 = None
-
-
-def test():
-    obj = NNQ()
-    state = np.ones([1, 42], dtype=np.float32)
-    print obj.receive(state, 0)
-
-
-if __name__ == '__main__':
-    test()
 

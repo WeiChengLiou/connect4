@@ -8,3 +8,9 @@ algo:
     * ANN1
     * ANN2
 
+
+# TODO:
+
+- Save/load
+- Connect chiao-lun's server
+- Weight recording
