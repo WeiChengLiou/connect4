@@ -16,7 +16,7 @@ def getState(state):
 
 
 def takeAction(s, pos, sgn):
-    state1 = action(str(s), pos, sgn)
+    state1 = action(s.state, pos, sgn)
     s1 = getState(state1)
     return s1
 
@@ -41,25 +41,28 @@ def game(players, state=None):
             raise Exception('infinite loop')
 
         try:
-            snew = encState(str(s))
+            snew = encState(s.state)
             pos = player.update(snew, score).predict(snew)
             s1 = takeAction(s, pos, sgn)
 
-            if s1.win:
+            if (s1.win != 0):
                 break
 
-            sgn = 'O' if sgn == 'X' else 'X'
+            sgn = 1 if sgn == 2 else 2
             i = (i + 1) % 2
             player = players[i]
             score = player.evalR(s.win)
             s = s1
         except ColException:
             score = -100.
+        except Exception as e:
+            print_exc()
+            set_trace()
 
     for p in players:
         score = p.evalR(s1.win)
         p.setScore(score)
-        p.update(encState(str(s1)), score)
+        p.update(encState(s1.state), score)
         p.replay()
         p.reset()
 
@@ -72,22 +75,22 @@ def train(**kwargs):
     wins = [0, 0, 0]
 
     Players = [
-        NNQ(sgn='O', algo=kwargs['algo']),
-        Random(sgn='X'),
+        NNQ(sgn=1, algo=kwargs['algo']),
+        Random(sgn=2),
         ]
     p = Players[0]
     li = []
 
     def run(i):
-        win, score = game(Players, initState)
-        if win == 'O':
+        win, score = game(Players, list(initState))
+        if win == 1:
             wins[0] += 1
-        elif win == 'X':
+        elif win == 2:
             wins[1] += 1
-        elif win == 'draw':
+        elif win == -1:
             wins[2] += 1
         else:
-            raise Exception('Unknown game result')
+            raise Exception('Unknown game result', win)
 
         if (i+1) % 1000 == 0:
             # li.append(map(np.mean, p.getparm()))

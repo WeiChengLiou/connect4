@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import random
+from pdb import set_trace
 
 
 SIZE = [6, 7]
 N = SIZE[0] * SIZE[1]
-initState = ' ' * N
+initState = [0] * N
 
 
 class ColException(Exception):
@@ -23,7 +24,7 @@ def show(state):
     for r in xrange(SIZE[0]):
         i0 = (r) * SIZE[1]
         i1 = (r+1) * SIZE[1]
-        print '||' + '|'.join(state[i0:i1]) + '||'
+        print '||' + '|'.join(map(str, state[i0:i1])) + '||'
 
 
 def posidx(r, c):
@@ -36,21 +37,22 @@ def posidx(r, c):
 def action(state, c, sgn):
     # Put sgn at c column then return new state
     i0 = c
-    if state[c] != ' ':
+    if state[c] != 0:
         raise ColException(c)
 
     for r in xrange(1, SIZE[0]):
         i = posidx(r, c)
-        if (state[i] != ' '):
+        if (state[i] != 0):
             break
         i0 = i
-    return state[:i0] + sgn + state[(i0 + 1):]
+    state[i0] = sgn
+    return state
 
 
 def actions(state):
     # Return Possible actions
     for c in xrange(SIZE[1]):
-        if state[c] == ' ':
+        if state[c] == 0:
             yield c
 
 
@@ -59,11 +61,11 @@ def rndstate(n):
         if n == -1:
             n = random.randint(0, 10)
         s0 = initState
-        sgn = 'O'
+        sgn = 1
         for i in xrange(n):
             pos = random.choice(list(actions(s0)))
             s0 = action(s0, pos, sgn)
-            sgn = 'O' if sgn == 'X' else 'X'
+            sgn = 1 if sgn == 2 else 2
         if not chkwin(s0):
             return s0
 
@@ -71,14 +73,14 @@ def rndstate(n):
 def newstate(state, r, c, sgn):
     # Put sgn at (r, c) then return new state
     n = posidx(r, c)
-    assert(state[n] == ' ')
+    assert(state[n] == 0)
     return state[:n] + sgn + state[(n + 1):]
 
 
 def chkDual(state):
     # Check dual step
-    cnt1 = sum([(x == 'O') for x in state])
-    cnt2 = sum([(x == 'X') for x in state])
+    cnt1 = sum([(x == 1) for x in state])
+    cnt2 = sum([(x == 2) for x in state])
     assert (cnt1 - cnt2) <= 1, 'Dual step'
     return True
 
@@ -111,29 +113,29 @@ def listwin():
         for idx in idxs:
             c = idx % SIZE[1]
             r = (idx - c) / SIZE[0]
-            s = newstate(s, r, c, 'O')
+            s = newstate(s, r, c, 1)
         show(s)
 
 
 def chkwin(state):
     # Check who is winner according to possible rules
-    if all([(x != ' ') for x in state[:7]]):
-        return 'draw'
+    if all([(x != 0) for x in state[:7]]):
+        return -1
 
     for idxs in poswin():
         cnt = sum([_reward(state[i]) for i in idxs])
         if cnt == 4:
-            return 'O'
+            return 1
         elif cnt == -4:
-            return 'X'
-    return None
+            return 2
+    return 0
 
 
 def _reward(sgn):
     # Return reward by sgn
-    if sgn == 'O':
+    if sgn == 1:
         return 1
-    elif sgn == 'X':
+    elif sgn == 2:
         return -1
     else:
         return 0
@@ -143,9 +145,9 @@ def chkwho(state):
     # Get who's turn
     cnt = sum(map(_reward, state))
     if cnt == 1:
-        return 'X'
+        return 2
     elif cnt == 0:
-        return 'O'
+        return 1
     raise Exception('Wrong turn!!')
 
 

@@ -9,7 +9,7 @@ import tensorflow as tf
 import numpy as np
 from pdb import set_trace
 from random import choice, random
-from RL import chkEmpty, StateAct
+from RL import chkEmpty, StateAct, show1
 
 # Implementation of Neural-Q
 # Use tensorflow to construct neural network framework
@@ -39,7 +39,7 @@ class Model(object):
         """ evalaute reward given state """
         if wl is None:
             return 0.
-        if wl == 'draw':
+        if wl == -1:
             return 1
         elif wl == self.sgn:
             return 2

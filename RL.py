@@ -11,7 +11,7 @@ class State(object):
         self.state = state
         self.win = win
 
-    def __str__(self):
+    def state(self):
         return self.state
 
 
@@ -33,9 +33,9 @@ def encState(state):
     """ encode original state into two boards """
     s1 = np.zeros((2, 42), dtype=np.float32)
     for i in xrange(42):
-        if state[i] == 'O':
+        if state[i] == 1:
             s1[0, i] = 1
-        elif state[i] == 'X':
+        elif state[i] == 2:
             s1[1, i] = 1
     # return s1.ravel()
     return s1.reshape((1, 84))
@@ -46,10 +46,10 @@ def chkEmpty(s1, i):
 
 
 def show1(state):
-    s = [' '] * 42
+    s = [0] * 42
     for i in range(42):
         if state[0, i] == 1:
-            s[i] = 'O'
+            s[i] = 1
         elif state[0, i+42] == 1:
-            s[i] = 'X'
-    show(''.join(s))
+            s[i] = 2
+    show(''.join(map(str, s)))
