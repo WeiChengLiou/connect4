@@ -37,9 +37,9 @@ def rndAction(state):
 class Model(object):
     def evalR(self, wl):
         """ evalaute reward given state """
-        if wl is None:
+        if wl == 0:
             return 0.
-        if wl == -1:
+        elif wl == -1:
             return 1
         elif wl == self.sgn:
             return 2
