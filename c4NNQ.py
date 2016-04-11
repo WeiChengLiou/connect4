@@ -123,30 +123,39 @@ class NNQ(Model):
 
     def update(self, state, r0):
         # receive state class
-        # self._update(state, r0)
+        if self.SARs:
+            s0 = self.SARs[-1]
+            if s0.state1 is None:
+                s0.state1 = state
+                s0.score = r0
+                self._update(self.SARs[-1:])
         return self
 
     def booking(self, SA):
         self.SARs.append(SA)
 
     def _update(self, SARs):
-        S = np.vstack([sa.state for sa in SARs])
+        try:
+            S = np.vstack([sa.state for sa in SARs])
+            r1, c1 = S.shape
+            S1 = np.vstack([sa.state1 for sa in SARs])
+            r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
+            if r1 < N_BATCH:
+                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
+                S1 = np.r_[S1, np.zeros((N_BATCH-r1, 84))]
+                r0 = np.r_[r0, np.zeros((N_BATCH-r1, 7))]
 
-        r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
-        r01 = self.maxR(S[1:, :]) * self.gamma
-        r01[N_BATCH-1] = 0
-        for i, sa in enumerate(SARs):
-            r0[i, sa.act] += r01[i]
-            # r0[i, :] += r01[i]
-        R = (1 - self.alpha) * self.eval(S) + self.alpha * r0
+            r01 = self.maxR(S1) * self.gamma
+            for i, sa in enumerate(SARs):
+                r0[i, sa.act] += r01[i]
 
-        r1, c1 = S.shape
-        if r1 < N_BATCH:
-            S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
-            R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
-        feed_dict = {self.state: S, self.Q: R}
-        var_list = [self.optimizer, self.loss]
-        _, l = self.sess.run(var_list, feed_dict)
+            R = (1 - self.alpha) * self.eval(S) + self.alpha * r0
+            feed_dict = {self.state: S, self.Q: R}
+            var_list = [self.optimizer, self.loss]
+            _, l = self.sess.run(var_list, feed_dict)
+        except:
+            print_exc()
+            set_trace()
 
     def predict(self, state):
         """ epsilon-greedy algorithm """
@@ -173,32 +182,13 @@ class NNQ(Model):
 
     def replay(self):
         # R(t+1) = a * R'(St, At) + (1-a) * (R(St, At) + g * max_a(R'(St1, a)))
-        try:
-            N = len(self.SARs)
-            if N < N_BATCH:
-                return
-            idx = np.random.choice(range(N), N_BATCH)
-            # idx = np.array(range(N_BATCH))
-            SARs = [self.SARs[i] for i in idx]
-            S = np.vstack([sa.state for sa in SARs])
-
-            r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
-            r01 = self.maxR(S[1:, :]) * self.gamma
-            r01[N_BATCH-1] = 0
-            for i, sa in enumerate(SARs):
-                r0[i, sa.act] += r01[i]
-            R = (1 - self.alpha) * self.eval(S) + self.alpha * r0
-
-            r1, c1 = S.shape
-            if r1 < N_BATCH:
-                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
-                R = np.r_[R, np.zeros((N_BATCH-r1, 7))]
-            feed_dict = {self.state: S, self.Q: R}
-            var_list = [self.optimizer, self.loss]
-            _, l = self.sess.run(var_list, feed_dict)
-        except:
-            print_exc()
-            set_trace()
+        N = len(self.SARs)
+        if N < N_BATCH:
+            return
+        idx = np.random.choice(range(N), N_BATCH)
+        # idx = np.array(range(N_BATCH))
+        SARs = [self.SARs[i] for i in idx]
+        self._update(SARs)
 
     def setScore(self, score):
         last = len(self.SARs) - 1

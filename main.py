@@ -61,7 +61,7 @@ def game(players, state=None):
 
     for p in players:
         score = p.evalR(s1.win)
-        p.setScore(score)
+        # p.setScore(score)
         p.update(encState(s1.state), score)
         p.replay()
         p.reset()
