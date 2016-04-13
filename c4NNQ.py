@@ -137,13 +137,13 @@ class NNQ(Model):
     def _update(self, SARs):
         try:
             S = np.vstack([sa.state for sa in SARs])
-            r1, c1 = S.shape
+            n1 = S.shape[0]
             S1 = np.vstack([sa.state1 for sa in SARs])
             r0 = np.vstack([self.reward(sa.act, sa.r()) for sa in SARs])
-            if r1 < N_BATCH:
-                S = np.r_[S, np.zeros((N_BATCH-r1, 84))]
-                S1 = np.r_[S1, np.zeros((N_BATCH-r1, 84))]
-                r0 = np.r_[r0, np.zeros((N_BATCH-r1, 7))]
+            if n1 < N_BATCH:
+                S = np.r_[S, self.zeros(N_BATCH-n1)]
+                S1 = np.r_[S1, self.zeros(N_BATCH-n1)]
+                r0 = np.r_[r0, np.zeros((N_BATCH-n1, 7))]
 
             r01 = self.maxR(S1) * self.gamma
             for i, sa in enumerate(SARs):
@@ -190,15 +190,6 @@ class NNQ(Model):
         SARs = [self.SARs[i] for i in idx]
         self._update(SARs)
 
-    def setScore(self, score):
-        last = len(self.SARs) - 1
-        for i in range(last, -1, -1):
-            s = self.SARs[i]
-            if s.score is None:
-                s.score = score
-                if i != last:
-                    s.state1 = self.SARs[i+1].state
-
     def reward(self, a, r):
         """
         Reward function
@@ -216,9 +207,9 @@ class NNQ(Model):
 
     def eval(self, state):
         assert type(state) == np.ndarray, type(state)
-        r, c = state.shape
-        if r < N_BATCH:
-            state = np.r_[state, np.zeros((N_BATCH-r, 84))]
+        n = state.shape[0]
+        if n < N_BATCH:
+            state = np.r_[state, self.zeros(N_BATCH-n)]
         try:
             r, = self.sess.run(
                 [self.model],
@@ -282,11 +273,12 @@ def ANN2(self):
 
 
 def CNN(self):
-    self.new_shape = (N_BATCH, 6, 7, 1)
+    self.zeros = lambda x: np.zeros((x, 6, 7, 2))
+    self.new_shape = (N_BATCH, 6, 7, 2)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
 
     self.conv1_weights = tf.Variable(
-        tf.truncated_normal([4, 4, 1, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([3, 3, 2, 16], stddev=0.1, seed=SEED)
         )
     self.conv1_biases = tf.Variable(
         tf.zeros([16]))
