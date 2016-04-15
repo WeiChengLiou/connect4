@@ -100,12 +100,25 @@ def train(**kwargs):
             # print (map(np.mean, p.getparm()))
             for i in range(3):
                 wins[i] = 0
+            p.saveNN()
 
     map(run, xrange(nRun))
     if kwargs.get('save'):
-        p.save()
         pd.DataFrame(li).to_csv('result.{0}.{1}.csv'.format(p.algo, nRun))
     return Players, li
+
+
+def test(**kwargs):
+    """ Run train and evaluation synchronously """
+    nRun = kwargs['n']
+    wins = [0, 0, 0]
+
+    Players = [
+        NNQ(sgn=1, algo=kwargs['algo'], nRun=nRun),
+        Random(sgn=2),
+        ]
+    p = Players[0]
+    li = []
 
 
 def showSA(p):

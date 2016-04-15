@@ -10,6 +10,8 @@ import numpy as np
 from pdb import set_trace
 from random import choice, random
 from RL import chkEmpty, StateAct, show1
+import savedata
+
 
 # Implementation of Neural-Q
 # Use tensorflow to construct neural network framework
@@ -23,7 +25,7 @@ from RL import chkEmpty, StateAct, show1
 #      Ans: Use cPickle to save, and tf.assign() to load
 SEED = 34654
 N_BATCH = 10
-N_REPSIZE = 2000
+N_REPSIZE = 200
 
 
 def rndAction(state):
@@ -86,14 +88,14 @@ class Random(Model):
 
 
 class NNQ(Model):
-    def __init__(self, sgn, algo, alpha=0.5, gamma=0.5, epsilon=0.1):
+    def __init__(self, sgn, algo, alpha=0.5, gamma=0.5, epsilon=0.1, **kwargs):
         self.sgn = sgn
         self.SARs = []  # List of (state, action)
-        self.alpha = alpha
-        self.gamma = gamma  # Discount factor
-        self.epsilon = epsilon
-        self.nrow = 6
-        self.ncol = 7
+        self.alpha = kwargs.get('alpha', 0.5)
+        self.gamma = kwargs.get('gamma', 0.5)  # Discount factor
+        self.epsilon = kwargs.get('epsilon', 0.1)
+        self.nRun = kwargs.get('nRun', 100)
+        self.nolearn = kwargs.get('nolearn', False)
         self.algo = algo
         self.RepSize = N_REPSIZE
 
@@ -108,14 +110,19 @@ class NNQ(Model):
             tf.train.GradientDescentOptimizer(0.5)\
               .minimize(self.loss)
 
-        # self.prediction = tf.argmax(self.model, 1)
-
         # Before starting, initialize the variables.  We will 'run' this first.
         self.init = tf.initialize_all_variables()
 
         # Launch the graph.
         self.sess = tf.Session()
         self.sess.run(self.init)
+
+        self.saveobj = savedata.SaveObj(
+            self.algo + '.h5',
+            [(p, self.__getattribute__(p).get_shape().as_list())
+                for p in self.parms],
+            times=self.nRun,
+            )
 
     def reset(self):
         if len(self.SARs) > self.RepSize:
@@ -171,14 +178,19 @@ class NNQ(Model):
         Like predict process in NN
         Best action: argmax( R(s, a) + gamma * max(R(s', a')) )
         """
-        rewards = self.eval(state)
-        s1 = state.ravel()
-        for i in np.argsort(rewards[0, :].ravel())[::-1]:
-            if (s1[i] == 0) and (chkEmpty(state, i)):
-                act = i
-                break
-        self.booking(StateAct(state, act, None))
-        return act
+        try:
+            act = -1
+            rewards = self.eval(state)
+            for i in np.argsort(rewards[0, :].ravel())[::-1]:
+                if chkEmpty(state, i):
+                    act = i
+                    break
+            assert act != -1
+            self.booking(StateAct(state, act, None))
+            return act
+        except:
+            print_exc()
+            set_trace()
 
     def replay(self):
         # R(t+1) = a * R'(St, At) + (1-a) * (R(St, At) + g * max_a(R'(St1, a)))
@@ -189,6 +201,9 @@ class NNQ(Model):
         # idx = np.array(range(N_BATCH))
         SARs = [self.SARs[i] for i in idx]
         self._update(SARs)
+
+    def saveNN(self):
+        self.saveobj.save(self.parms, self.getparm())
 
     def reward(self, a, r):
         """
@@ -225,12 +240,8 @@ class NNQ(Model):
             li.append(self.sess.run(parm))
         return li
 
-    def save(self):
-        fi = 'NeuralQ.{}.pkl'.format(self.algo)
-        cPickle.dump(self.getparm(), gzip.open(fi, 'wb'))
-
     def load(self):
-        fi = 'NeuralQ.{}.pkl'.format(self.algo)
+        fi = self.SaveObj.fi
         ret = cPickle.load(gzip.open(fi, 'rb'))
         for vname, var in zip(self.parms, ret):
             self.__setattr__(vname, var)
@@ -307,16 +318,17 @@ def CNN(self):
 
 
 def CNN2(self):
-    self.new_shape = (1, 6, 7, 1)
+    self.zeros = lambda x: np.zeros((x, 6, 7, 2))
+    self.new_shape = (N_BATCH, 6, 7, 2)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
 
     self.conv1_weights = tf.Variable(
-        tf.truncated_normal([4, 4, 1, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([3, 3, 2, 16], stddev=0.1, seed=SEED)
         )
     self.conv1_biases = tf.Variable(
         tf.zeros([16]))
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([192, 7], stddev=0.1, seed=SEED)
+        tf.truncated_normal([672, 7], stddev=0.1, seed=SEED)
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([7]))
@@ -331,7 +343,7 @@ def CNN2(self):
     pool = tf.nn.max_pool(
         relu,
         ksize=[1, 2, 2, 1],
-        strides=[1, 2, 2, 1],
+        strides=[1, 1, 1, 1],
         padding='SAME')
     pool_shape = pool.get_shape().as_list()
     reshape = tf.reshape(
