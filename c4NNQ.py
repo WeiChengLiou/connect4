@@ -99,7 +99,7 @@ class NNQ(Model):
         self.algo = algo
         self.RepSize = N_REPSIZE
 
-        self.Q = tf.placeholder(tf.float32, shape=[N_BATCH, self.ncol])
+        self.Q = tf.placeholder(tf.float32, shape=[N_BATCH, 7])
         eval(algo)(self)  # Build up NN structure
 
         f = lambda x: tf.nn.l2_loss(self.__getattribute__(x))
@@ -117,12 +117,13 @@ class NNQ(Model):
         self.sess = tf.Session()
         self.sess.run(self.init)
 
-        self.saveobj = savedata.SaveObj(
-            self.algo + '.h5',
-            [(p, self.__getattribute__(p).get_shape().as_list())
-                for p in self.parms],
-            times=self.nRun,
-            )
+        if not self.nolearn:
+            self.saveobj = savedata.SaveObj(
+                self.algo + '.h5',
+                [(p, self.__getattribute__(p).get_shape().as_list())
+                    for p in self.parms],
+                times=self.nRun,
+                )
 
     def reset(self):
         if len(self.SARs) > self.RepSize:
@@ -130,7 +131,7 @@ class NNQ(Model):
 
     def update(self, state, r0):
         # receive state class
-        if self.SARs:
+        if self.SARs and (not self.nolearn):
             s0 = self.SARs[-1]
             if s0.state1 is None:
                 s0.state1 = state
@@ -138,8 +139,16 @@ class NNQ(Model):
                 self._update(self.SARs[-1:])
         return self
 
-    def booking(self, SA):
-        self.SARs.append(SA)
+    def booking(self, state, act):
+        if self.SARs:
+            num0 = hash(tuple(state.ravel()))
+            num1 = hash(tuple(self.SARs[-1].state.ravel()))
+            if num0 == num1:
+                s0 = self.SARs[-1]
+                s0.act = act
+                return
+        s0 = StateAct(state, act, None)
+        self.SARs.append(s0)
 
     def _update(self, SARs):
         try:
@@ -170,6 +179,7 @@ class NNQ(Model):
             act = self._action(state)
         else:
             act = rndAction(state)
+        self.booking(state, act)
         return act
 
     def _action(self, state):
@@ -186,7 +196,6 @@ class NNQ(Model):
                     act = i
                     break
             assert act != -1
-            self.booking(StateAct(state, act, None))
             return act
         except:
             print_exc()
@@ -195,7 +204,7 @@ class NNQ(Model):
     def replay(self):
         # R(t+1) = a * R'(St, At) + (1-a) * (R(St, At) + g * max_a(R'(St1, a)))
         N = len(self.SARs)
-        if N < N_BATCH:
+        if (N < N_BATCH) or (not self.nolearn):
             return
         idx = np.random.choice(range(N), N_BATCH)
         # idx = np.array(range(N_BATCH))
@@ -203,13 +212,15 @@ class NNQ(Model):
         self._update(SARs)
 
     def saveNN(self):
+        if self.nolearn:
+            return
         self.saveobj.save(self.parms, self.getparm())
 
     def reward(self, a, r):
         """
         Reward function
         """
-        rmat = np.zeros([self.ncol], dtype=np.float32)
+        rmat = np.zeros([7], dtype=np.float32)
         if r != 0:
             rmat[a] = r
         return rmat
@@ -247,58 +258,28 @@ class NNQ(Model):
             self.__setattr__(vname, var)
 
 
-def ANN1(self):
-    self.new_shape = (N_BATCH, 84)
-    self.state = tf.placeholder(tf.float32, shape=self.new_shape)
-    self.fc1_weights = tf.Variable(
-        tf.truncated_normal([84, 7], stddev=0.1, seed=SEED)
-        )
-    self.fc1_biases = tf.Variable(
-        tf.zeros([N_BATCH, 7]))
-    self.parms = ('fc1_weights', 'fc1_biases')
-
-    model = tf.nn.softmax(
-        tf.matmul(self.state, self.fc1_weights) + self.fc1_biases)
-    self.model = model
-
-
-def ANN2(self):
-    self.new_shape = (N_BATCH, 84)
-    self.state = tf.placeholder(tf.float32, shape=self.new_shape)
-    self.fc1_weights = tf.Variable(
-        tf.truncated_normal([84, 16], stddev=0.1, seed=SEED)
-        )
-    self.fc1_biases = tf.Variable(
-        tf.zeros([N_BATCH, 16]))
-    self.fc2_weights = tf.Variable(
-        tf.truncated_normal([16, 7], stddev=0.1, seed=SEED)
-        )
-    self.fc2_biases = tf.Variable(
-        tf.zeros([N_BATCH, 7]))
-    self.parms = ('fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases')
-
-    model = tf.nn.relu(
-        tf.matmul(self.state, self.fc1_weights) + self.fc1_biases)
-    self.model = tf.nn.softmax(
-        tf.matmul(model, self.fc2_weights) + self.fc2_biases)
-
-
 def CNN(self):
     self.zeros = lambda x: np.zeros((x, 6, 7, 2))
     self.new_shape = (N_BATCH, 6, 7, 2)
     self.state = tf.placeholder(tf.float32, shape=self.new_shape)
 
     self.conv1_weights = tf.Variable(
-        tf.truncated_normal([3, 3, 2, 16], stddev=0.1, seed=SEED)
+        tf.truncated_normal([3, 3, 2, 16], stddev=0.1, seed=SEED),
+        trainable=True,
         )
     self.conv1_biases = tf.Variable(
-        tf.zeros([16]))
+        tf.zeros([16]),
+        trainable=True,
+        )
     self.fc1_weights = tf.Variable(
-        tf.truncated_normal([672, 7], stddev=0.1, seed=SEED)
+        tf.truncated_normal([672, 7], stddev=0.1, seed=SEED),
+        trainable=True,
         # tf.ones([N, self.ncol])
         )
     self.fc1_biases = tf.Variable(
-        tf.zeros([7]))
+        tf.zeros([7]),
+        trainable=True,
+        )
     self.parms = ('conv1_weights', 'conv1_biases', 'fc1_weights', 'fc1_biases')
 
     conv = tf.nn.conv2d(

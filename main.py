@@ -114,7 +114,8 @@ def test(**kwargs):
     wins = [0, 0, 0]
 
     Players = [
-        NNQ(sgn=1, algo=kwargs['algo'], nRun=nRun),
+        NNQ(sgn=1, algo=kwargs['algo'], nRun=nRun,
+            loadfi=kwargs.get('loadfi', None)),
         Random(sgn=2),
         ]
     p = Players[0]
