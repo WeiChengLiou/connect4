@@ -101,10 +101,10 @@ class NNQ(Model):
 
         self.Q = tf.placeholder(tf.float32, shape=[N_BATCH, 7])
         eval(algo)(self)  # Build up NN structure
+        self.parms = tf.trainable_variables()
 
-        f = lambda x: tf.nn.l2_loss(self.__getattribute__(x))
         loss = tf.reduce_mean(tf.square(self.model - self.Q))
-        regularizer = sum(map(f, self.parms))
+        regularizer = sum(map(tf.nn.l2_loss, self.parms))
         self.loss = loss + 1e-4 * regularizer
         self.optimizer = \
             tf.train.GradientDescentOptimizer(0.5)\
@@ -120,8 +120,7 @@ class NNQ(Model):
         if not self.nolearn:
             self.saveobj = savedata.SaveObj(
                 self.algo + '.h5',
-                [(p, self.__getattribute__(p).get_shape().as_list())
-                    for p in self.parms],
+                [(p.name, p.get_shape().as_list()) for p in self.parms],
                 times=self.nRun,
                 )
 
@@ -214,7 +213,7 @@ class NNQ(Model):
     def saveNN(self):
         if self.nolearn:
             return
-        self.saveobj.save(self.parms, self.getparm())
+        self.saveobj.save(self.getparm())
 
     def reward(self, a, r):
         """
@@ -246,10 +245,8 @@ class NNQ(Model):
             set_trace()
 
     def getparm(self):
-        li = []
-        for parm in it.imap(self.__getattribute__, self.parms):
-            li.append(self.sess.run(parm))
-        return li
+        return [(p.name, val) for p, val in
+                zip(self.parm, self.sess.run(self.parm))]
 
     def load(self):
         fi = self.SaveObj.fi
@@ -266,21 +263,23 @@ def CNN(self):
     self.conv1_weights = tf.Variable(
         tf.truncated_normal([3, 3, 2, 16], stddev=0.1, seed=SEED),
         trainable=True,
+        name='conv1_weights',
         )
     self.conv1_biases = tf.Variable(
         tf.zeros([16]),
         trainable=True,
+        name='conv1_biases',
         )
     self.fc1_weights = tf.Variable(
         tf.truncated_normal([672, 7], stddev=0.1, seed=SEED),
         trainable=True,
-        # tf.ones([N, self.ncol])
+        name='fc1_weights',
         )
     self.fc1_biases = tf.Variable(
         tf.zeros([7]),
         trainable=True,
+        name='fc1_biases',
         )
-    self.parms = ('conv1_weights', 'conv1_biases', 'fc1_weights', 'fc1_biases')
 
     conv = tf.nn.conv2d(
         self.state,
